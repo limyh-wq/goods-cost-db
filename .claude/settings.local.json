@@ -21,7 +21,25 @@
       "Bash(git init *)",
       "Bash(git config *)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Initial commit: 굿즈 원가·공급가 DB 시스템 *)"
+      "Bash(git commit -m 'Initial commit: 굿즈 원가·공급가 DB 시스템 *)",
+      "Bash(gh repo *)",
+      "Bash(vercel --yes)",
+      "Bash(git commit -m 'Upgrade Next.js to latest secure version *)",
+      "Bash(git push *)",
+      "Bash(vercel logs *)",
+      "Bash(git commit -m 'Add Prisma migration to build script for Vercel deployment *)",
+      "Bash(vercel --version)",
+      "Bash(findstr DATABASE_URL)",
+      "Bash(vercel whoami *)",
+      "Bash(vercel projects *)",
+      "PowerShell($env:USERNAME = \"team1\"; vercel whoami)",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_bGoIk4pg2Jau@ep-super-star-a4c9guox.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma migrate status)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_bGoIk4pg2Jau@ep-super-star-a4c9guox.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma migrate deploy)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_bGoIk4pg2Jau@ep-super-star-a4c9guox.us-east-1.aws.neon.tech/neondb?sslmode=require\" npx prisma db push)",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_bGoIk4pg2Jau@ep-super-star-a4c9guox.us-east-1.aws.neon.tech/neondb?sslmode=require&schema=cost\" npx prisma migrate deploy)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
