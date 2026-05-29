@@ -1,0 +1,20 @@
+node_modules
+.next
+out
+build
+
+# env
+.env
+.env*.local
+
+# uploaded files (local storage)
+/uploads
+/storage
+
+# prisma
+prisma/*.db
+
+# misc
+.DS_Store
+*.log
+coverage

@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: goods_cost_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: goods
+      POSTGRES_PASSWORD: goods
+      POSTGRES_DB: goods_cost
+    ports:
+      - "5432:5432"
+    volumes:
+      - goods_cost_pgdata:/var/lib/postgresql/data
+
+volumes:
+  goods_cost_pgdata:

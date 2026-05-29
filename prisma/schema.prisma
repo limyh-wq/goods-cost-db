@@ -1,0 +1,118 @@
+// 굿즈 제작 원가·공급가 DB 시스템
+// 주의: 생산 진행 상태/일정/액션 관련 필드는 의도적으로 포함하지 않음 (기존 업무관리 시트 담당)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// 제작건: 기본 정보 + 원가/공급가 정보
+/// 금액은 부동소수점 오차를 피하기 위해 Decimal 사용.
+/// 자동 계산값(factoryTotalPrice 등)은 저장 시 lib/calc.ts 로 재계산되어 함께 저장됨
+/// (목록 정렬·마진율/수량 범위 필터를 DB 레벨에서 처리하기 위함).
+model ProductionRecord {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // ── 기본 정보 ──
+  projectName  String
+  productName  String
+  category     String
+  code         String? // 제작건 고유 코드 (예: SK-LEE-DR01) - 진행 현황 시스템과 연동용
+  clientName   String?
+  workSheetUrl String? // 기존 업무관리 시트 링크 (역할 분리 유지)
+
+  // ── 원가/공급가 정보 ──
+  quantity         Int
+  factoryName      String
+  currency         String // KRW, RMB, USD 등
+  factoryUnitPrice Decimal  @db.Decimal(18, 4)
+  exchangeRate     Decimal? @default(1) @db.Decimal(10, 4) // 공장 단가 통화 → KRW 환율 (없으면 1)
+  factoryTotalPrice Decimal @db.Decimal(18, 4) // = quantity * factoryUnitPrice * exchangeRate
+  sampleFee        Decimal  @default(0) @db.Decimal(18, 4)
+  extraCost        Decimal  @default(0) @db.Decimal(18, 4)
+  finalCost             Decimal  @db.Decimal(18, 4) // = factoryTotalPrice + sampleFee + extraCost
+  supplyUnitPrice       Decimal  @db.Decimal(18, 4)
+  sampleSupplyUnitPrice Decimal  @default(0) @db.Decimal(18, 4) // 고객사 샘플 공급 단가 (KRW)
+  supplyTotalPrice      Decimal  @db.Decimal(18, 4) // = quantity * supplyUnitPrice
+  marginAmount          Decimal  @db.Decimal(18, 4) // = supplyTotalPrice - finalCost
+  marginRate            Decimal? @db.Decimal(9, 4)  // = marginAmount / supplyTotalPrice * 100, 공급총액 0이면 null
+
+  // ── 제작 사양 ──
+  specText String
+  tags     String[] @default([])
+
+  // ── 기타 ──
+  memo String?
+
+  attachments Attachment[]
+
+  @@index([code])
+  @@index([category])
+  @@index([factoryName])
+  @@index([clientName])
+  @@index([currency])
+  @@index([createdAt])
+  @@index([marginRate])
+  @@index([tags], type: Gin)
+  @@map("production_records")
+}
+
+/// 제작건에 첨부되는 파일 (제작건과 반드시 연결)
+model Attachment {
+  id                 String         @id @default(cuid())
+  productionRecordId String
+  fileName           String
+  fileUrl            String // 다운로드/열기용 URL (로컬: /api/files/<storageKey>)
+  storageKey         String // 스토리지 내부 키 (로컬 파일 경로 또는 객체 키)
+  fileType           AttachmentType @default(OTHER)
+  fileMemo           String?
+  mimeType           String?
+  sizeBytes          Int?
+  uploadedAt         DateTime       @default(now())
+
+  productionRecord ProductionRecord @relation(fields: [productionRecordId], references: [id], onDelete: Cascade)
+
+  @@index([productionRecordId])
+  @@map("attachments")
+}
+
+/// (2차 기능 대비) 공장별 엑셀 컬럼 매핑 규칙
+model ExcelMapping {
+  id             String       @id @default(cuid())
+  factoryName    String
+  documentType   DocumentType
+  mappingName    String
+  columnMappings Json // { systemField: excelColumnHeader }
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([factoryName, documentType, mappingName])
+  @@index([factoryName, documentType])
+  @@map("excel_mappings")
+}
+
+enum AttachmentType {
+  FACTORY_QUOTE // 공장 견적서
+  CLIENT_SUPPLY_PRICE // 고객사 공급가
+  INVOICE // 인보이스
+  STATEMENT // 거래명세서
+  SPEC_FILE // 제작 사양서
+  WORK_REQUEST // 작업요청서
+  SAMPLE_PHOTO // 샘플 사진
+  REVISION_GUIDE // 수정 가이드
+  DELIVERY_FILE // 납품 자료
+  OTHER // 기타
+}
+
+enum DocumentType {
+  FACTORY_QUOTE
+  CLIENT_SUPPLY_PRICE
+  INVOICE
+  OTHER
+}
