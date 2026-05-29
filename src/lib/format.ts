@@ -23,6 +23,12 @@ export function formatMoney(
   return currency ? `${nf.format(value)} ${currency}` : nf.format(value);
 }
 
+/** 원화(KRW) 표시 — 정수 원 단위로 반올림, ₩ 접두 (예: "₩3,128,597") */
+export function formatKRW(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "-";
+  return `₩${nf0.format(Math.round(value))}`;
+}
+
 /** 마진율: null 이면 "-", 아니면 "15.0%" */
 export function formatRate(value: number | null | undefined): string {
   if (value === null || value === undefined) return "-";

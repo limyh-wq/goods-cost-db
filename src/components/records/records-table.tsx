@@ -9,7 +9,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import type { SerializedRecord } from "@/lib/serialize";
-import { formatDate, formatInt, formatNumber } from "@/lib/format";
+import { formatDate, formatInt, formatKRW } from "@/lib/format";
 import { MarginBadge, Tag } from "@/components/ui";
 
 const col = createColumnHelper<SerializedRecord>();
@@ -62,42 +62,43 @@ export function RecordsTable({ records }: { records: SerializedRecord[] }) {
       col.accessor("currency", { header: "통화", meta: { align: "center" } }),
       col.accessor("factoryUnitPrice", {
         header: "공장 단가",
-        cell: (c) => formatNumber(c.getValue()),
+        // 외화 원본 × 등록시점 환율 → 원화 표시
+        cell: (c) => formatKRW(c.getValue() * (c.row.original.exchangeRate ?? 1)),
         meta: { align: "right" },
       }),
       col.accessor("factoryTotalPrice", {
         header: "공장 총액",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue()),
         meta: { align: "right" },
       }),
       col.accessor("sampleFee", {
         header: "샘플비",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue() * (c.row.original.exchangeRate ?? 1)),
         meta: { align: "right" },
       }),
       col.accessor("extraCost", {
         header: "기타 비용",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue() * (c.row.original.exchangeRate ?? 1)),
         meta: { align: "right" },
       }),
       col.accessor("finalCost", {
         header: "최종 원가",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue()),
         meta: { align: "right", strong: true },
       }),
       col.accessor("supplyUnitPrice", {
         header: "공급 단가",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue()),
         meta: { align: "right" },
       }),
       col.accessor("supplyTotalPrice", {
         header: "공급 총액",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue()),
         meta: { align: "right" },
       }),
       col.accessor("marginAmount", {
         header: "마진 금액",
-        cell: (c) => formatNumber(c.getValue()),
+        cell: (c) => formatKRW(c.getValue()),
         meta: { align: "right" },
       }),
       col.accessor("marginRate", {
