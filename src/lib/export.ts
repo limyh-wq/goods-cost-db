@@ -1,7 +1,10 @@
 import type { SerializedRecord } from "@/lib/serialize";
 import { ATTACHMENT_TYPE_LABELS } from "@/lib/constants";
 
-/** 내보내기 컬럼 정의 (목록 화면과 동일 순서, 한글 헤더) */
+/** 등록 시점 환율 기준 원화 환산값 (정수 원 단위 반올림). 외화 원본값에 곱해 사용. */
+const krw = (r: SerializedRecord, v: number) => Math.round(v * (r.exchangeRate ?? 1));
+
+/** 내보내기 컬럼 정의 (목록 화면과 동일 순서, 한글 헤더) — 모든 금액 원화 기준 */
 const COLUMNS: { header: string; value: (r: SerializedRecord) => string | number }[] = [
   { header: "등록일", value: (r) => r.createdAt.slice(0, 10) },
   { header: "프로젝트명", value: (r) => r.projectName },
@@ -10,15 +13,17 @@ const COLUMNS: { header: string; value: (r: SerializedRecord) => string | number
   { header: "고객사", value: (r) => r.clientName ?? "" },
   { header: "제작 수량", value: (r) => r.quantity },
   { header: "공장명", value: (r) => r.factoryName },
-  { header: "통화", value: (r) => r.currency },
-  { header: "공장 단가", value: (r) => r.factoryUnitPrice },
-  { header: "공장 총액", value: (r) => r.factoryTotalPrice },
-  { header: "샘플비", value: (r) => r.sampleFee },
-  { header: "기타 비용", value: (r) => r.extraCost },
-  { header: "최종 원가", value: (r) => r.finalCost },
-  { header: "공급 단가", value: (r) => r.supplyUnitPrice },
-  { header: "공급 총액", value: (r) => r.supplyTotalPrice },
-  { header: "마진 금액", value: (r) => r.marginAmount },
+  { header: "통화(원본)", value: (r) => r.currency },
+  { header: "적용 환율", value: (r) => r.exchangeRate ?? 1 },
+  // 외화 입력값은 환율을 곱해 원화로 환산
+  { header: "공장 단가(원)", value: (r) => krw(r, r.factoryUnitPrice) },
+  { header: "공장 총액(원)", value: (r) => Math.round(r.factoryTotalPrice) },
+  { header: "샘플비(원)", value: (r) => krw(r, r.sampleFee) },
+  { header: "기타 비용(원)", value: (r) => krw(r, r.extraCost) },
+  { header: "최종 원가(원)", value: (r) => Math.round(r.finalCost) },
+  { header: "공급 단가(원)", value: (r) => Math.round(r.supplyUnitPrice) },
+  { header: "공급 총액(원)", value: (r) => Math.round(r.supplyTotalPrice) },
+  { header: "마진 금액(원)", value: (r) => Math.round(r.marginAmount) },
   { header: "마진율(%)", value: (r) => (r.marginRate === null ? "" : r.marginRate) },
   { header: "제작 사양", value: (r) => r.specText },
   { header: "태그", value: (r) => r.tags.join(", ") },
