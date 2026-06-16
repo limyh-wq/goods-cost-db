@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import { PasswordGate } from "@/components/password-gate";
 
 export const metadata: Metadata = {
   title: "굿즈 제작 원가·공급가 DB",
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
+        <PasswordGate>
         <header className="border-b border-gray-200 bg-white">
           <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-6 px-4">
             <Link href="/records" className="text-base font-semibold">
@@ -31,6 +33,7 @@ export default function RootLayout({
           </div>
         </header>
         <main className="mx-auto max-w-[1600px] px-4 py-6">{children}</main>
+        </PasswordGate>
       </body>
     </html>
   );
