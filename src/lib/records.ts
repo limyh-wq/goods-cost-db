@@ -97,13 +97,20 @@ export function buildOrderBy(
 
 /** 입력값 → DB 저장용 data (자동 계산값 병합). 생성·수정 공용. */
 export function buildRecordData(input: RecordInput) {
+  const factoryRate = input.factoryUnitPriceRate ?? input.exchangeRate ?? 1;
+  const sampleRate = input.sampleFeeRate ?? 1;
+  const extraRate = input.extraCostRate ?? 1;
+
   const calc = calcRecord({
     quantity: input.quantity,
     factoryUnitPrice: input.factoryUnitPrice,
-    exchangeRate: input.exchangeRate,
+    factoryRate,
     sampleFee: input.sampleFee,
+    sampleRate,
     extraCost: input.extraCost,
+    extraRate,
     supplyUnitPrice: input.supplyUnitPrice,
+    sampleSupplyUnitPrice: input.sampleSupplyUnitPrice,
   });
 
   return {
@@ -115,12 +122,20 @@ export function buildRecordData(input: RecordInput) {
     workSheetUrl: input.workSheetUrl,
     quantity: input.quantity,
     factoryName: input.factoryName,
-    currency: input.currency,
+    // 레거시/대표 통화·환율은 공장단가 기준으로 채움 (필터/정렬 호환)
+    currency: input.factoryUnitPriceCurrency ?? input.currency,
     factoryUnitPrice: new Prisma.Decimal(input.factoryUnitPrice),
-    exchangeRate: input.exchangeRate ? new Prisma.Decimal(input.exchangeRate) : null,
+    exchangeRate: new Prisma.Decimal(factoryRate),
     factoryTotalPrice: new Prisma.Decimal(calc.factoryTotalPrice),
     sampleFee: new Prisma.Decimal(input.sampleFee),
     extraCost: new Prisma.Decimal(input.extraCost),
+    // 필드별 통화/환율
+    factoryUnitPriceCurrency: input.factoryUnitPriceCurrency,
+    factoryUnitPriceRate: new Prisma.Decimal(factoryRate),
+    sampleFeeCurrency: input.sampleFeeCurrency,
+    sampleFeeRate: new Prisma.Decimal(sampleRate),
+    extraCostCurrency: input.extraCostCurrency,
+    extraCostRate: new Prisma.Decimal(extraRate),
     finalCost: new Prisma.Decimal(calc.finalCost),
     supplyUnitPrice: new Prisma.Decimal(input.supplyUnitPrice),
     sampleSupplyUnitPrice: new Prisma.Decimal(input.sampleSupplyUnitPrice),

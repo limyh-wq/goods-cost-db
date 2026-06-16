@@ -21,16 +21,19 @@ export default async function RecordDetailPage({
   const r = serializeRecord(record);
 
   // 모든 금액을 등록 시점 환율 기준 원화(KRW)로 환산해 표시한다.
-  // 저장된 계산값(공장총액/최종원가/공급총액/마진)은 이미 KRW이고,
-  // 원본 입력값(공장단가/샘플비/기타비용)만 외화이므로 환율을 곱한다.
-  const rate = r.exchangeRate ?? 1;
-  const isForeign = r.currency !== "KRW" && rate !== 1;
-  const factoryUnitKRW = r.factoryUnitPrice * rate;
-  const sampleFeeKRW = r.sampleFee * rate;
-  const extraCostKRW = r.extraCost * rate;
-  // 외화 원본값 참고 표기 (예: "6.96 USD")
-  const orig = (v: number) =>
-    isForeign ? `${formatNumber(v)} ${r.currency}` : undefined;
+  // 공장단가/샘플비/기타비용은 각각 자기 통화·환율로 환산한다.
+  const fRate = r.factoryUnitPriceRate ?? 1;
+  const sRate = r.sampleFeeRate ?? 1;
+  const eRate = r.extraCostRate ?? 1;
+  const factoryUnitKRW = r.factoryUnitPrice * fRate;
+  const sampleFeeKRW = r.sampleFee * sRate;
+  const extraCostKRW = r.extraCost * eRate;
+  const anyForeign = [r.factoryUnitPriceCurrency, r.sampleFeeCurrency, r.extraCostCurrency].some(
+    (c) => c && c !== "KRW",
+  );
+  // 외화 원본값+환율 참고 표기 (예: "6.96 USD @1,513.37")
+  const orig = (v: number, cur: string, rate: number) =>
+    cur && cur !== "KRW" ? `${formatNumber(v)} ${cur} @${formatNumber(rate)}` : undefined;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -89,22 +92,19 @@ export default async function RecordDetailPage({
 
       {/* 원가/공급가 계산표 — 모든 금액 원화(₩) 기준 */}
       <Card title="원가 / 공급가 계산표">
-        {isForeign && (
+        {anyForeign && (
           <p className="text-xs text-gray-500">
-            모든 금액은 등록 시점 환율 기준 원화로 표시됩니다 · 적용 환율{" "}
-            <span className="font-medium text-gray-700">
-              1 {r.currency} = {formatNumber(rate)} 원
-            </span>
+            모든 금액은 등록 시점 환율 기준 원화로 표시됩니다. (외화 항목은 원본값 @환율 병기)
           </p>
         )}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <tbody className="divide-y divide-gray-100">
               <Row label="제작 수량" value={formatInt(r.quantity)} />
-              <Row label="공장 단가" value={formatKRW(factoryUnitKRW)} sub={orig(r.factoryUnitPrice)} />
+              <Row label="공장 단가" value={formatKRW(factoryUnitKRW)} sub={orig(r.factoryUnitPrice, r.factoryUnitPriceCurrency, fRate)} />
               <Row label="공장 총액 (수량 × 공장 단가)" value={formatKRW(r.factoryTotalPrice)} />
-              <Row label="샘플비" value={formatKRW(sampleFeeKRW)} sub={orig(r.sampleFee)} />
-              <Row label="기타 비용" value={formatKRW(extraCostKRW)} sub={orig(r.extraCost)} />
+              <Row label="샘플비" value={formatKRW(sampleFeeKRW)} sub={orig(r.sampleFee, r.sampleFeeCurrency, sRate)} />
+              <Row label="기타 비용" value={formatKRW(extraCostKRW)} sub={orig(r.extraCost, r.extraCostCurrency, eRate)} />
               <Row label="최종 원가 (공장총액 + 샘플비 + 기타비용)" value={formatKRW(r.finalCost)} strong />
               <Row label="고객사 공급 단가" value={formatKRW(r.supplyUnitPrice)} />
               <Row label="공급 총액 (수량 × 공급 단가)" value={formatKRW(r.supplyTotalPrice)} />

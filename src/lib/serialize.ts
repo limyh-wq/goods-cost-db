@@ -23,6 +23,12 @@ export interface SerializedRecord {
   factoryTotalPrice: number;
   sampleFee: number;
   extraCost: number;
+  factoryUnitPriceCurrency: string;
+  factoryUnitPriceRate: number | null;
+  sampleFeeCurrency: string;
+  sampleFeeRate: number | null;
+  extraCostCurrency: string;
+  extraCostRate: number | null;
   finalCost: number;
   supplyUnitPrice: number;
   sampleSupplyUnitPrice: number;
@@ -72,6 +78,12 @@ export function serializeRecord(record: RecordWith): SerializedRecord {
     factoryTotalPrice: Number(record.factoryTotalPrice),
     sampleFee: Number(record.sampleFee),
     extraCost: Number(record.extraCost),
+    factoryUnitPriceCurrency: record.factoryUnitPriceCurrency,
+    factoryUnitPriceRate: record.factoryUnitPriceRate === null ? null : Number(record.factoryUnitPriceRate),
+    sampleFeeCurrency: record.sampleFeeCurrency,
+    sampleFeeRate: record.sampleFeeRate === null ? null : Number(record.sampleFeeRate),
+    extraCostCurrency: record.extraCostCurrency,
+    extraCostRate: record.extraCostRate === null ? null : Number(record.extraCostRate),
     finalCost: Number(record.finalCost),
     supplyUnitPrice: Number(record.supplyUnitPrice),
     sampleSupplyUnitPrice: Number(record.sampleSupplyUnitPrice),

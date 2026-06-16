@@ -63,7 +63,7 @@ export function RecordsTable({ records }: { records: SerializedRecord[] }) {
       col.accessor("factoryUnitPrice", {
         header: "공장 단가",
         // 외화 원본 × 등록시점 환율 → 원화 표시
-        cell: (c) => formatKRW(c.getValue() * (c.row.original.exchangeRate ?? 1)),
+        cell: (c) => formatKRW(c.getValue() * (c.row.original.factoryUnitPriceRate ?? 1)),
         meta: { align: "right" },
       }),
       col.accessor("factoryTotalPrice", {
@@ -73,12 +73,12 @@ export function RecordsTable({ records }: { records: SerializedRecord[] }) {
       }),
       col.accessor("sampleFee", {
         header: "샘플비",
-        cell: (c) => formatKRW(c.getValue() * (c.row.original.exchangeRate ?? 1)),
+        cell: (c) => formatKRW(c.getValue() * (c.row.original.sampleFeeRate ?? 1)),
         meta: { align: "right" },
       }),
       col.accessor("extraCost", {
         header: "기타 비용",
-        cell: (c) => formatKRW(c.getValue() * (c.row.original.exchangeRate ?? 1)),
+        cell: (c) => formatKRW(c.getValue() * (c.row.original.extraCostRate ?? 1)),
         meta: { align: "right" },
       }),
       col.accessor("finalCost", {

@@ -30,7 +30,8 @@ export const recordInputSchema = z.object({
     .int("제작 수량은 정수여야 합니다.")
     .nonnegative("제작 수량은 0 이상이어야 합니다."),
   factoryName: z.string().trim().min(1, "공장명은 필수입니다."),
-  currency: z.string().trim().min(1, "통화는 필수입니다."),
+  // currency: (레거시/대표) 미지정 시 공장단가 통화로 채움
+  currency: z.string().trim().min(1).default("KRW"),
   factoryUnitPrice: z.coerce
     .number({ invalid_type_error: "공장 단가는 숫자여야 합니다." })
     .nonnegative("공장 단가는 0 이상이어야 합니다."),
@@ -41,6 +42,14 @@ export const recordInputSchema = z.object({
     .optional(),
   sampleFee: z.coerce.number().nonnegative().default(0),
   extraCost: z.coerce.number().nonnegative().default(0),
+
+  // 필드별 통화/환율 (공장단가·샘플비·기타비용 각각)
+  factoryUnitPriceCurrency: z.string().trim().min(1).default("KRW"),
+  factoryUnitPriceRate: z.coerce.number().positive("환율은 0보다 커야 합니다.").default(1).optional(),
+  sampleFeeCurrency: z.string().trim().min(1).default("KRW"),
+  sampleFeeRate: z.coerce.number().positive("환율은 0보다 커야 합니다.").default(1).optional(),
+  extraCostCurrency: z.string().trim().min(1).default("KRW"),
+  extraCostRate: z.coerce.number().positive("환율은 0보다 커야 합니다.").default(1).optional(),
   supplyUnitPrice: z.coerce
     .number({ invalid_type_error: "공급 단가는 숫자여야 합니다." })
     .nonnegative("공급 단가는 0 이상이어야 합니다."),

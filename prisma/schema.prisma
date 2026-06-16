@@ -30,12 +30,20 @@ model ProductionRecord {
   // ── 원가/공급가 정보 ──
   quantity         Int
   factoryName      String
-  currency         String // KRW, RMB, USD 등
+  currency         String // (레거시/대표 통화) 공장 단가 통화와 동일하게 유지
   factoryUnitPrice Decimal  @db.Decimal(18, 4)
-  exchangeRate     Decimal? @default(1) @db.Decimal(10, 4) // 공장 단가 통화 → KRW 환율 (없으면 1)
-  factoryTotalPrice Decimal @db.Decimal(18, 4) // = quantity * factoryUnitPrice * exchangeRate
+  exchangeRate     Decimal? @default(1) @db.Decimal(10, 4) // (레거시/대표) 공장 단가 통화 → KRW 환율
+  factoryTotalPrice Decimal @db.Decimal(18, 4) // = quantity * factoryUnitPrice * factoryUnitPriceRate
   sampleFee        Decimal  @default(0) @db.Decimal(18, 4)
   extraCost        Decimal  @default(0) @db.Decimal(18, 4)
+
+  // ── 필드별 통화/환율 (공장단가·샘플비·기타비용 각각 독립 통화) ──
+  factoryUnitPriceCurrency String   @default("KRW")
+  factoryUnitPriceRate     Decimal? @default(1) @db.Decimal(10, 4) // 공장단가 통화 → KRW
+  sampleFeeCurrency        String   @default("KRW")
+  sampleFeeRate            Decimal? @default(1) @db.Decimal(10, 4) // 샘플비 통화 → KRW
+  extraCostCurrency        String   @default("KRW")
+  extraCostRate            Decimal? @default(1) @db.Decimal(10, 4) // 기타비용 통화 → KRW
   finalCost             Decimal  @db.Decimal(18, 4) // = factoryTotalPrice + sampleFee + extraCost
   supplyUnitPrice       Decimal  @db.Decimal(18, 4)
   sampleSupplyUnitPrice Decimal  @default(0) @db.Decimal(18, 4) // 고객사 샘플 공급 단가 (KRW)

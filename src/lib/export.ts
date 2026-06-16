@@ -1,8 +1,11 @@
 import type { SerializedRecord } from "@/lib/serialize";
 import { ATTACHMENT_TYPE_LABELS } from "@/lib/constants";
 
-/** 등록 시점 환율 기준 원화 환산값 (정수 원 단위 반올림). 외화 원본값에 곱해 사용. */
-const krw = (r: SerializedRecord, v: number) => Math.round(v * (r.exchangeRate ?? 1));
+/** 등록 시점 환율 기준 원화 환산값 (정수 원 단위 반올림). */
+const krwAt = (v: number, rate: number | null) => Math.round(v * (rate ?? 1));
+/** 외화 원본 추적 표기 (예: "12.43 USD @1513.37"), KRW면 "KRW". */
+const origCell = (v: number, cur: string, rate: number | null) =>
+  cur && cur !== "KRW" ? `${v} ${cur} @${rate ?? 1}` : "KRW";
 
 /** 내보내기 컬럼 정의 (목록 화면과 동일 순서, 한글 헤더) — 모든 금액 원화 기준 */
 const COLUMNS: { header: string; value: (r: SerializedRecord) => string | number }[] = [
@@ -13,13 +16,14 @@ const COLUMNS: { header: string; value: (r: SerializedRecord) => string | number
   { header: "고객사", value: (r) => r.clientName ?? "" },
   { header: "제작 수량", value: (r) => r.quantity },
   { header: "공장명", value: (r) => r.factoryName },
-  { header: "통화(원본)", value: (r) => r.currency },
-  { header: "적용 환율", value: (r) => r.exchangeRate ?? 1 },
-  // 외화 입력값은 환율을 곱해 원화로 환산
-  { header: "공장 단가(원)", value: (r) => krw(r, r.factoryUnitPrice) },
+  // 외화 입력값은 각 필드 통화·환율로 원화 환산 (원본은 별도 컬럼에 추적)
+  { header: "공장 단가(원)", value: (r) => krwAt(r.factoryUnitPrice, r.factoryUnitPriceRate) },
+  { header: "공장 단가(원본)", value: (r) => origCell(r.factoryUnitPrice, r.factoryUnitPriceCurrency, r.factoryUnitPriceRate) },
   { header: "공장 총액(원)", value: (r) => Math.round(r.factoryTotalPrice) },
-  { header: "샘플비(원)", value: (r) => krw(r, r.sampleFee) },
-  { header: "기타 비용(원)", value: (r) => krw(r, r.extraCost) },
+  { header: "샘플비(원)", value: (r) => krwAt(r.sampleFee, r.sampleFeeRate) },
+  { header: "샘플비(원본)", value: (r) => origCell(r.sampleFee, r.sampleFeeCurrency, r.sampleFeeRate) },
+  { header: "기타 비용(원)", value: (r) => krwAt(r.extraCost, r.extraCostRate) },
+  { header: "기타 비용(원본)", value: (r) => origCell(r.extraCost, r.extraCostCurrency, r.extraCostRate) },
   { header: "최종 원가(원)", value: (r) => Math.round(r.finalCost) },
   { header: "공급 단가(원)", value: (r) => Math.round(r.supplyUnitPrice) },
   { header: "공급 총액(원)", value: (r) => Math.round(r.supplyTotalPrice) },

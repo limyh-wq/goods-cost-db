@@ -21,11 +21,15 @@ interface FormShape {
   workSheetUrl: string;
   quantity: string;
   factoryName: string;
-  currency: string;
   factoryUnitPrice: string;
-  exchangeRate: string;
+  factoryUnitPriceCurrency: string;
+  factoryUnitPriceRate: string;
   sampleFee: string;
+  sampleFeeCurrency: string;
+  sampleFeeRate: string;
   extraCost: string;
+  extraCostCurrency: string;
+  extraCostRate: string;
   supplyUnitPrice: string;
   sampleSupplyUnitPrice: string;
   specText: string;
@@ -42,17 +46,32 @@ function toFormShape(r?: SerializedRecord): FormShape {
     workSheetUrl: r?.workSheetUrl ?? "",
     quantity: r ? String(r.quantity) : "",
     factoryName: r?.factoryName ?? "",
-    currency: r?.currency ?? "KRW",
     factoryUnitPrice: r ? String(r.factoryUnitPrice) : "",
-    exchangeRate: r?.exchangeRate ? String(r.exchangeRate) : "1",
+    factoryUnitPriceCurrency: r?.factoryUnitPriceCurrency ?? r?.currency ?? "KRW",
+    factoryUnitPriceRate: r?.factoryUnitPriceRate
+      ? String(r.factoryUnitPriceRate)
+      : r?.exchangeRate
+        ? String(r.exchangeRate)
+        : "1",
     sampleFee: r ? String(r.sampleFee) : "0",
+    sampleFeeCurrency: r?.sampleFeeCurrency ?? "KRW",
+    sampleFeeRate: r?.sampleFeeRate ? String(r.sampleFeeRate) : "1",
     extraCost: r ? String(r.extraCost) : "0",
+    extraCostCurrency: r?.extraCostCurrency ?? "KRW",
+    extraCostRate: r?.extraCostRate ? String(r.extraCostRate) : "1",
     supplyUnitPrice: r ? String(r.supplyUnitPrice) : "",
     sampleSupplyUnitPrice: r ? String(r.sampleSupplyUnitPrice) : "0",
     specText: r?.specText ?? "",
     memo: r?.memo ?? "",
   };
 }
+
+// 공장측 금액 필드 ↔ 통화/환율 키 매핑
+const MONEY_FIELDS = [
+  { amount: "factoryUnitPrice", currency: "factoryUnitPriceCurrency", rate: "factoryUnitPriceRate", label: "공장 단가" },
+  { amount: "sampleFee", currency: "sampleFeeCurrency", rate: "sampleFeeRate", label: "샘플비" },
+  { amount: "extraCost", currency: "extraCostCurrency", rate: "extraCostRate", label: "기타 비용" },
+] as const;
 
 export function RecordForm({
   mode,
@@ -69,58 +88,58 @@ export function RecordForm({
   const [serverError, setServerError] = useState<string | null>(null);
 
   function set<K extends keyof FormShape>(key: K, value: string) {
-    setForm((f) => {
-      const updated = { ...f, [key]: value };
-      // 통화 변경 시 exchangeRate 초기화
-      if (key === "currency" && value === "KRW") {
-        updated.exchangeRate = "1";
-      }
-      return updated;
-    });
+    setForm((f) => ({ ...f, [key]: value }));
   }
 
-  // 실시간 자동 계산
+  // 통화 변경 시: KRW이면 환율 1, 아니면 실시간 환율 자동 조회
+  function onCurrencyChange(currencyKey: keyof FormShape, rateKey: keyof FormShape, value: string) {
+    setForm((f) => ({ ...f, [currencyKey]: value, [rateKey]: value === "KRW" ? "1" : f[rateKey] }));
+    if (value !== "KRW") void refreshRate(value, rateKey);
+  }
+
+  // 실시간 자동 계산 (필드별 환율)
   const calc = useMemo(
     () =>
       calcRecord({
         quantity: form.quantity,
         factoryUnitPrice: form.factoryUnitPrice,
-        exchangeRate: form.exchangeRate,
+        factoryRate: form.factoryUnitPriceRate,
         sampleFee: form.sampleFee,
+        sampleRate: form.sampleFeeRate,
         extraCost: form.extraCost,
+        extraRate: form.extraCostRate,
         supplyUnitPrice: form.supplyUnitPrice,
         sampleSupplyUnitPrice: form.sampleSupplyUnitPrice,
       }),
-    [form.quantity, form.factoryUnitPrice, form.exchangeRate, form.sampleFee, form.extraCost, form.supplyUnitPrice, form.sampleSupplyUnitPrice],
+    [form.quantity, form.factoryUnitPrice, form.factoryUnitPriceRate, form.sampleFee, form.sampleFeeRate, form.extraCost, form.extraCostRate, form.supplyUnitPrice, form.sampleSupplyUnitPrice],
   );
 
-  // 환율 API 새로고침
-  const [loadingRate, setLoadingRate] = useState(false);
-  async function refreshExchangeRate() {
-    const curr = form.currency;
-    if (curr === "KRW") {
-      set("exchangeRate", "1");
+  // 환율 API 조회 (필드별)
+  const [loadingRateKey, setLoadingRateKey] = useState<string | null>(null);
+  async function refreshRate(currencyVal: string, rateKey: keyof FormShape) {
+    if (currencyVal === "KRW") {
+      set(rateKey, "1");
       return;
     }
-    setLoadingRate(true);
+    setLoadingRateKey(rateKey);
     try {
-      const res = await fetch(`/api/exchange-rates?from=${curr}&to=KRW`);
+      const res = await fetch(`/api/exchange-rates?from=${currencyVal}&to=KRW`);
       if (res.ok) {
-        const data = await res.json() as { rate: number };
-        set("exchangeRate", String(data.rate));
+        const data = (await res.json()) as { rate: number };
+        set(rateKey, String(data.rate));
       }
     } catch {
       // API 호출 실패 시 무시 (수동 입력 사용)
     } finally {
-      setLoadingRate(false);
+      setLoadingRateKey(null);
     }
   }
 
-  // 공장 비용들의 KRW 환산값 (표시용)
-  const exchangeRateNum = toNumber(form.exchangeRate) || 1;
-  const factoryUnitPriceKRW = (toNumber(form.factoryUnitPrice) || 0) * exchangeRateNum;
-  const sampleFeeKRW = (toNumber(form.sampleFee) || 0) * exchangeRateNum;
-  const extraCostKRW = (toNumber(form.extraCost) || 0) * exchangeRateNum;
+  // 필드별 KRW 환산값 (표시용)
+  const krwOf = (amountKey: keyof FormShape, currencyKey: keyof FormShape, rateKey: keyof FormShape) => {
+    const rate = form[currencyKey] === "KRW" ? 1 : toNumber(form[rateKey]) || 1;
+    return (toNumber(form[amountKey]) || 0) * rate;
+  };
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -220,117 +239,72 @@ export function RecordForm({
 
       {/* 2. 원가/공급가 + 3. 자동 계산 결과 (입력 근처에 즉시 표시) */}
       <Section title="2. 원가 / 공급가 정보">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {field("quantity", "제작 수량", { required: true, type: "number", placeholder: "0" })}
           {field("factoryName", "공장명", { required: true })}
-          <div className="space-y-1">
-            <Label htmlFor="currency" required>
-              통화
-            </Label>
-            <Select
-              id="currency"
-              className="w-full"
-              value={form.currency}
-              onChange={(e) => set("currency", e.target.value)}
-            >
-              {CURRENCY_OPTIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </Select>
-          </div>
         </div>
 
-        {form.currency !== "KRW" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="space-y-1">
-              <Label htmlFor="exchangeRate">
-                {form.currency} → KRW 환율
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="exchangeRate"
-                  type="number"
-                  step="any"
-                  placeholder="1"
-                  value={form.exchangeRate}
-                  onChange={(e) => set("exchangeRate", e.target.value)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={refreshExchangeRate}
-                  disabled={loadingRate}
-                  className="whitespace-nowrap"
-                >
-                  {loadingRate ? "로딩…" : "새로고침"}
-                </Button>
-              </div>
-              {errors.exchangeRate && <p className="text-xs text-red-600">{errors.exchangeRate}</p>}
-            </div>
-          </div>
-        )}
-
+        {/* 공장단가·샘플비·기타비용 — 각각 통화/환율 독립 선택 */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="space-y-1">
-            <Label>공장 단가</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                placeholder="0"
-                value={form.factoryUnitPrice}
-                onChange={(e) => set("factoryUnitPrice", e.target.value)}
-              />
-              <span className="flex items-center px-3 bg-gray-50 rounded border border-gray-300 text-sm text-gray-600 font-medium">
-                {form.currency}
-              </span>
-            </div>
-            {errors.factoryUnitPrice && <p className="text-xs text-red-600">{errors.factoryUnitPrice}</p>}
-            <CalcHint label="공장 단가 (KRW 환산)" value={factoryUnitPriceKRW} currency="KRW" />
-          </div>
-          <div className="space-y-1">
-            <Label>샘플비</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                placeholder="0"
-                value={form.sampleFee}
-                onChange={(e) => set("sampleFee", e.target.value)}
-              />
-              <span className="flex items-center px-3 bg-gray-50 rounded border border-gray-300 text-sm text-gray-600 font-medium">
-                {form.currency}
-              </span>
-            </div>
-            {errors.sampleFee && <p className="text-xs text-red-600">{errors.sampleFee}</p>}
-            {form.currency !== "KRW" && (
-              <CalcHint label="샘플비 (KRW 환산)" value={sampleFeeKRW} currency="KRW" />
-            )}
-          </div>
-          <div className="space-y-1">
-            <Label>기타 비용</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                inputMode="decimal"
-                step="any"
-                placeholder="0"
-                value={form.extraCost}
-                onChange={(e) => set("extraCost", e.target.value)}
-              />
-              <span className="flex items-center px-3 bg-gray-50 rounded border border-gray-300 text-sm text-gray-600 font-medium">
-                {form.currency}
-              </span>
-            </div>
-            {errors.extraCost && <p className="text-xs text-red-600">{errors.extraCost}</p>}
-            {form.currency !== "KRW" && (
-              <CalcHint label="기타 비용 (KRW 환산)" value={extraCostKRW} currency="KRW" />
-            )}
-          </div>
+          {MONEY_FIELDS.map((mf) => {
+            const cur = form[mf.currency];
+            const isForeign = cur !== "KRW";
+            return (
+              <div key={mf.amount} id={`field-${mf.amount}`} className="space-y-1">
+                <Label>{mf.label}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    placeholder="0"
+                    value={form[mf.amount]}
+                    onChange={(e) => set(mf.amount, e.target.value)}
+                  />
+                  <Select
+                    className="w-24 shrink-0"
+                    value={cur}
+                    onChange={(e) => onCurrencyChange(mf.currency, mf.rate, e.target.value)}
+                  >
+                    {CURRENCY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                {errors[mf.amount] && <p className="text-xs text-red-600">{errors[mf.amount]}</p>}
+                {isForeign && (
+                  <div className="flex items-center gap-2">
+                    <span className="whitespace-nowrap text-xs text-gray-500">{cur}→KRW</span>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="1"
+                      value={form[mf.rate]}
+                      onChange={(e) => set(mf.rate, e.target.value)}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => refreshRate(cur, mf.rate)}
+                      disabled={loadingRateKey === mf.rate}
+                      className="whitespace-nowrap"
+                    >
+                      {loadingRateKey === mf.rate ? "로딩…" : "새로고침"}
+                    </Button>
+                  </div>
+                )}
+                {isForeign && (
+                  <CalcHint
+                    label={`${mf.label} (KRW 환산)`}
+                    value={krwOf(mf.amount, mf.currency, mf.rate)}
+                    currency="KRW"
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

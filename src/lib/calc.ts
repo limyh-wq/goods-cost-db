@@ -25,11 +25,15 @@
 export interface CalcInput {
   quantity?: number | string | null;
   factoryUnitPrice?: number | string | null;
-  exchangeRate?: number | string | null; // 공장단가 통화 → KRW 환율 (없으면 1)
+  exchangeRate?: number | string | null; // (레거시/대표) 환율 — 필드별 환율 미지정 시 fallback
   sampleFee?: number | string | null;
   extraCost?: number | string | null;
   supplyUnitPrice?: number | string | null;
   sampleSupplyUnitPrice?: number | string | null; // 고객사 샘플 공급 단가 (KRW)
+  // 필드별 환율 (지정 시 exchangeRate 대신 사용). 미지정/빈값이면 exchangeRate fallback.
+  factoryRate?: number | string | null;
+  sampleRate?: number | string | null;
+  extraRate?: number | string | null;
 }
 
 export interface CalcResult {
@@ -52,6 +56,22 @@ export function toNumber(value: number | string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** 필드별 환율 선택: 빈값/미지정/0 이면 fallback 사용. */
+function pickRate(
+  perField: number | string | null | undefined,
+  fallback: number,
+): number {
+  if (
+    perField === undefined ||
+    perField === null ||
+    (typeof perField === "string" && perField.trim() === "")
+  ) {
+    return fallback;
+  }
+  const n = toNumber(perField);
+  return n > 0 ? n : fallback;
+}
+
 /** 지정 소수 자리로 반올림 (부동소수점 노이즈 제거). */
 export function roundTo(value: number, decimals: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -66,17 +86,22 @@ const RATE_DECIMALS = 2;
 export function calcRecord(input: CalcInput): CalcResult {
   const quantity = toNumber(input.quantity);
   const factoryUnitPrice = toNumber(input.factoryUnitPrice);
-  const exchangeRate = toNumber(input.exchangeRate) || 1; // 없으면 1
+  const fallbackRate = toNumber(input.exchangeRate) || 1; // 필드별 환율 미지정 시 fallback
   const sampleFee = toNumber(input.sampleFee);
   const extraCost = toNumber(input.extraCost);
   const supplyUnitPrice = toNumber(input.supplyUnitPrice);
   const sampleSupplyUnitPrice = toNumber(input.sampleSupplyUnitPrice);
 
-  // 모든 공장 비용을 KRW로 환산 (공장단가, 샘플비, 기타비용 모두 동일 통화)
-  const factoryUnitPriceKRW = roundTo(factoryUnitPrice * exchangeRate, MONEY_DECIMALS);
+  // 필드별 환율: 값이 지정되면 그것을, 아니면 fallbackRate 사용
+  const factoryRate = pickRate(input.factoryRate, fallbackRate);
+  const sampleRate = pickRate(input.sampleRate, fallbackRate);
+  const extraRate = pickRate(input.extraRate, fallbackRate);
+
+  // 각 공장 비용을 자기 통화 환율로 KRW 환산
+  const factoryUnitPriceKRW = roundTo(factoryUnitPrice * factoryRate, MONEY_DECIMALS);
   const factoryTotalPrice = roundTo(quantity * factoryUnitPriceKRW, MONEY_DECIMALS);
-  const sampleFeeKRW = roundTo(sampleFee * exchangeRate, MONEY_DECIMALS);
-  const extraCostKRW = roundTo(extraCost * exchangeRate, MONEY_DECIMALS);
+  const sampleFeeKRW = roundTo(sampleFee * sampleRate, MONEY_DECIMALS);
+  const extraCostKRW = roundTo(extraCost * extraRate, MONEY_DECIMALS);
   const finalCost = roundTo(
     factoryTotalPrice + sampleFeeKRW + extraCostKRW,
     MONEY_DECIMALS,
